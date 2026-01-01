@@ -1,26 +1,64 @@
 import streamlit as st
-import asyncio
-from telegram.ext import Application, CommandHandler
+import requests
+import time
+from bs4 import BeautifulSoup
 
-# Load secrets from Streamlit
 BOT_TOKEN = st.secrets["BOT_TOKEN"]
+CHAT_ID = st.secrets["CHAT_ID"]
 
-async def update_cmd(update, context):
-    await update.message.reply_text("Bot is alive ✅")
+BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-async def main():
-    app = Application.builder().token(BOT_TOKEN).build()
+def get_updates(offset=None):
+    params = {"timeout": 100}
+    if offset:
+        params["offset"] = offset
+    return requests.get(f"{BASE_URL}/getUpdates", params=params).json()
 
-    # Register /update command
-    app.add_handler(CommandHandler("update", update_cmd))
+def send_message(text):
+    requests.post(
+        f"{BASE_URL}/sendMessage",
+        data={"chat_id": CHAT_ID, "text": text}
+    )
 
-    # Start bot
-    await app.initialize()
-    await app.start()
+def fetch_public_notices():
+    url = "https://jeemain.nta.nic.in/"
+    r = requests.get(url, timeout=15)
+    soup = BeautifulSoup(r.text, "html.parser")
 
-    # Keep app running forever
-    await asyncio.Event().wait()
+    notices = soup.select("div.public-notice a")
+    if not notices:
+        return "No Public Notices found."
 
-# Streamlit needs this guard
+    msg = "📢 *JEE Main Public Notices*\n\n"
+    for a in notices:
+        title = a.get_text(strip=True)
+        link = a.get("href")
+        if link and not link.startswith("http"):
+            link = url + link
+        msg += f"• {title}\n{link}\n\n"
+
+    return msg
+
+def main():
+    st.write("🤖 Bot running. Waiting for /update …")
+
+    last_update_id = None
+
+    while True:
+        updates = get_updates(last_update_id)
+        if "result" in updates:
+            for update in updates["result"]:
+                last_update_id = update["update_id"] + 1
+
+                if "message" in update:
+                    text = update["message"].get("text", "")
+                    chat_id = str(update["message"]["chat"]["id"])
+
+                    if text.strip() == "/update" and chat_id == CHAT_ID:
+                        notice_text = fetch_public_notices()
+                        send_message(notice_text)
+
+        time.sleep(2)
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
