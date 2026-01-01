@@ -26,7 +26,7 @@ def send_message(text):
     try:
         requests.post(
             f"{BASE_URL}/sendMessage",
-            data={"chat_id": CHAT_ID, "text": text, "parse_mode": "Markdown"}  # Added parse_mode
+            data={"chat_id": CHAT_ID, "text": text, "parse_mode": "Markdown"}
         )
     except Exception as e:
         print("Send message error:", e)
@@ -35,23 +35,26 @@ def send_message(text):
 def fetch_public_notices():
     """Fetch all Public Notices from NTA JEE Main site"""
     url = "https://jeemain.nta.nic.in/"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}  # Add user-agent to avoid blocks
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
     try:
         r = requests.get(url, headers=headers, timeout=15)
-        r.raise_for_status()  # Raise error for bad status codes
+        r.raise_for_status()
         soup = BeautifulSoup(r.text, "html.parser")
 
-        # Debug: Print relevant HTML (remove after fixing)
-        st.write("Debug: Checking for tab-content")
-        tab_content = soup.find("div", class_="tab-content")
-        if not tab_content:
-            st.write("Debug: tab-content not found. Full body snippet:", soup.body.prettify()[:1000])  # First 1000 chars
-            return "No Public Notices found. (Debug: tab-content div missing)"
+        # Find the container div with class containing "gen-list"
+        notices_container = soup.find("div", class_=lambda c: c and "gen-list" in c)
+        if not notices_container:
+            return "No Public Notices found. (Container div not found)"
 
-        notices = tab_content.find_all("li")
+        # Find the <ul> inside the container
+        ul = notices_container.find("ul")
+        if not ul:
+            return "No Public Notices found. (UL not found)"
+
+        # Find all <li> in the <ul>
+        notices = ul.find_all("li")
         if not notices:
-            st.write("Debug: No <li> in tab-content")
-            return "No Public Notices found. (Debug: No list items)"
+            return "No Public Notices found. (No list items)"
 
         msg = "📢 *JEE Main Public Notices*\n\n"
         for li in notices:
