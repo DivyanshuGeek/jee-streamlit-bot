@@ -20,24 +20,7 @@ def send_message(text):
         data={"chat_id": CHAT_ID, "text": text}
     )
 
-def fetch_public_notices():
-    url = "https://jeemain.nta.nic.in/"
-    r = requests.get(url, timeout=15)
-    soup = BeautifulSoup(r.text, "html.parser")
 
-    notices = soup.select("div.public-notice a")
-    if not notices:
-        return "No Public Notices found."
-
-    msg = "📢 *JEE Main Public Notices*\n\n"
-    for a in notices:
-        title = a.get_text(strip=True)
-        link = a.get("href")
-        if link and not link.startswith("http"):
-            link = url + link
-        msg += f"• {title}\n{link}\n\n"
-
-    return msg
 
 def main():
     st.write("🤖 Bot running. Waiting for /update …")
@@ -62,3 +45,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
