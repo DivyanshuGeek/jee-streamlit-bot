@@ -1,63 +1,26 @@
 import streamlit as st
-import requests
-from bs4 import BeautifulSoup
-import json
+import asyncio
+from telegram.ext import Application, CommandHandler
 
-# --- Load secrets ---
+# Load secrets from Streamlit
 BOT_TOKEN = st.secrets["BOT_TOKEN"]
-CHAT_ID = int(st.secrets["CHAT_ID"])
 
-API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
+async def update_cmd(update, context):
+    await update.message.reply_text("Bot is alive ✅")
 
-st.title("JEE Update Telegram Bot")
-st.write("Bot is active. Send /update in Telegram.")
+async def main():
+    app = Application.builder().token(BOT_TOKEN).build()
 
-def send_message(text):
-    requests.post(
-        f"{API_URL}/sendMessage",
-        data={
-            "chat_id": CHAT_ID,
-            "text": text,
-            "disable_web_page_preview": True
-        },
-        timeout=10
-    )
+    # Register /update command
+    app.add_handler(CommandHandler("update", update_cmd))
 
-def fetch_public_notices():
-    url = "https://jeemain.nta.nic.in/"
-    r = requests.get(url, timeout=10)
-    soup = BeautifulSoup(r.text, "html.parser")
+    # Start bot
+    await app.initialize()
+    await app.start()
 
-    section = soup.find("div", id="publicNotice")
-    if not section:
-        return "No Public Notices found."
+    # Keep app running forever
+    await asyncio.Event().wait()
 
-    notices = section.find_all("a")
-    if not notices:
-        return "No Public Notices found."
-
-    out = []
-    for n in notices:
-        title = n.get_text(strip=True)
-        link = n.get("href")
-        if link and link.startswith("/"):
-            link = "https://jeemain.nta.nic.in" + link
-        out.append(f"{title}\n{link}")
-
-    return "\n\n".join(out)
-
-# --- Webhook trigger via query parameter ---
-params = st.query_params
-
-if "message" in params:
-    try:
-        payload = json.loads(params["message"])
-        text = payload.get("text", "")
-
-        if text == "/update":
-            send_message("Fetching Public Notices ⏳")
-            send_message(fetch_public_notices())
-    except Exception as e:
-        st.error(str(e))
-
-st.success("App running. Waiting for Telegram.")
+# Streamlit needs this guard
+if __name__ == "__main__":
+    asyncio.run(main())
