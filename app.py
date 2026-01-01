@@ -26,7 +26,7 @@ def send_message(text):
     try:
         requests.post(
             f"{BASE_URL}/sendMessage",
-            data={"chat_id": CHAT_ID, "text": text}
+            data={"chat_id": CHAT_ID, "text": text, "parse_mode": "Markdown"}  # Added parse_mode
         )
     except Exception as e:
         print("Send message error:", e)
@@ -35,18 +35,23 @@ def send_message(text):
 def fetch_public_notices():
     """Fetch all Public Notices from NTA JEE Main site"""
     url = "https://jeemain.nta.nic.in/"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}  # Add user-agent to avoid blocks
     try:
-        r = requests.get(url, timeout=15)
+        r = requests.get(url, headers=headers, timeout=15)
+        r.raise_for_status()  # Raise error for bad status codes
         soup = BeautifulSoup(r.text, "html.parser")
 
-        # Find the Public Notices tab content
+        # Debug: Print relevant HTML (remove after fixing)
+        st.write("Debug: Checking for tab-content")
         tab_content = soup.find("div", class_="tab-content")
         if not tab_content:
-            return "No Public Notices found."
+            st.write("Debug: tab-content not found. Full body snippet:", soup.body.prettify()[:1000])  # First 1000 chars
+            return "No Public Notices found. (Debug: tab-content div missing)"
 
         notices = tab_content.find_all("li")
         if not notices:
-            return "No Public Notices found."
+            st.write("Debug: No <li> in tab-content")
+            return "No Public Notices found. (Debug: No list items)"
 
         msg = "📢 *JEE Main Public Notices*\n\n"
         for li in notices:
